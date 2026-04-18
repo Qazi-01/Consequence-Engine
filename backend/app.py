@@ -13,8 +13,45 @@ def _get_allowed_origins() -> list:
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+import random
 
 
+class _RandomGeneratorCompat:
+    def __init__(self, seed=None):
+        self._rng = random.Random(seed)
+
+    def random(self):
+        return self._rng.random()
+
+    def uniform(self, a, b):
+        return self._rng.uniform(a, b)
+
+    def randint(self, a, b):
+        return self._rng.randint(a, b)
+
+    def integers(self, low, high=None):
+        if high is None:
+            return self._rng.randrange(low)
+        return self._rng.randrange(low, high)
+
+    def choice(self, seq):
+        return self._rng.choice(seq)
+
+    def shuffle(self, seq):
+        self._rng.shuffle(seq)
+
+
+class _NumpyRandomCompat:
+    @staticmethod
+    def default_rng(seed=None):
+        return _RandomGeneratorCompat(seed)
+
+
+class _NumpyCompat:
+    random = _NumpyRandomCompat()
+
+
+np = _NumpyCompat()
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": _get_allowed_origins()}})
 
