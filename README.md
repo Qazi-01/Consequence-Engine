@@ -28,7 +28,7 @@ Consequence-Engine/
 ## Prerequisites
 
 - **Python** 3.10+
-- **Node.js** 18+
+- **Node.js** 20.19+ (or 22.12+)
 
 ---
 
