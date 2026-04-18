@@ -1,9 +1,22 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
+import os
+
+
+def _get_allowed_origins() -> list:
+    """Return the configured CORS origin allowlist."""
+    configured_origins = os.environ.get("CORS_ALLOWED_ORIGINS")
+    if configured_origins:
+        return [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
+    return [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": _get_allowed_origins()}})
 
 # ---------------------------------------------------------------------------
 # Mock scenario content helpers
