@@ -27,7 +27,7 @@ export default function App() {
       const data = await res.json();
       setResult(data);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
