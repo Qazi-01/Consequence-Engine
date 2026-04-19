@@ -184,12 +184,30 @@ Analyze this scenario deeply and personally:
 "{scenario}"
 
 You MUST:
+- Treat each scenario as a unique case study. Do not reuse mental templates across different inputs.
 - tailor ALL reasoning to the exact scenario
 - avoid generic advice
 - avoid templates
 - behave like a strategist simulating real consequences
-- keep responses clear, structured, and concise. Avoid overly long sentences while preserving meaning.
+You MUST:
+- tailor ALL reasoning to the exact scenario
+- avoid generic advice
+- avoid templates
+- behave like a strategist simulating real consequences
 
+STRICT OUTPUT LIMITS:
+- Each field MUST be max 1 to 2 short sentences
+- Each field MUST be under 25 words
+- Reasoning MUST be brief and direct (no paragraphs)
+- RippleEffect MUST be 1 to 2 sentences max
+- BetterDecision MUST be 1 to 2 sentences max
+- No repetition across fields
+
+STYLE:
+- Be concise and factual
+- No filler words
+- No academic explanations
+Use extremely concise, natural language.
 Return ONLY valid JSON:
 
 {{
