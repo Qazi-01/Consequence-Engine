@@ -2,6 +2,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
 import os
+import json
+import re
+import requests
+
+# Initialize OpenAI API key
+api_key = os.getenv("OPENAI_API_KEY")
 
 
 def _get_allowed_origins() -> list:
@@ -13,6 +19,8 @@ def _get_allowed_origins() -> list:
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+
 import random
 
 
@@ -86,8 +94,8 @@ SCENARIO_TEMPLATES = {
 }
 
 
-def _build_response(scenario: str) -> dict:
-    """Generate outcome probabilities and mock content for the given scenario."""
+def _build_template_response(scenario: str) -> dict:
+    """Fallback template response when AI is unavailable."""
     rng = np.random.default_rng()
 
     # Generate probabilities that sum to 1.0
@@ -135,6 +143,118 @@ def _build_response(scenario: str) -> dict:
     }
 
 
+def _build_response(scenario: str) -> dict:
+    """Generate AI-powered outcome analysis for the given scenario."""
+    if not api_key:
+        print("Warning: OpenAI API key not configured. Using template responses.")
+        return _build_template_response(scenario)
+    
+    try:
+        # Use OpenAI API to generate contextual outcomes
+        prompt = f"""Analyze this decision scenario and provide three possible outcomes with probabilities.
+
+Scenario: "{scenario}"
+
+Respond ONLY with valid JSON in this exact format (no markdown, no code blocks):
+{{
+  "outcomes": [
+    {{
+      "label": "Most Likely",
+      "probability": 0.XX,
+      "outcome": "A concise description of what would most likely happen",
+      "reasoning": "Why this is the most probable outcome based on the scenario",
+      "rippleEffect": "Secondary effects and downstream consequences"
+    }},
+    {{
+      "label": "Likely",
+      "probability": 0.XX,
+      "outcome": "An alternative positive or neutral outcome",
+      "reasoning": "Why this could happen given external factors",
+      "rippleEffect": "How this outcome would influence other areas"
+    }},
+    {{
+      "label": "Less Likely",
+      "probability": 0.XX,
+      "outcome": "An unlikely but possible breakthrough outcome",
+      "reasoning": "Low-probability catalysts that could lead to this",
+      "rippleEffect": "Unexpected positive cascading effects"
+    }}
+  ],
+  "betterDecision": "A specific, actionable recommendation to improve the decision",
+  "projection": {{
+    "mentalState": "How the person's mental state might evolve over 30 days",
+    "performance": "Expected performance impact in the first month",
+    "riskLevel": "Risk assessment with specific mitigations"
+  }}
+}}
+
+Ensure probabilities sum to 1.0 and are realistic for the scenario."""
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert decision analyst. Provide insightful, personalized outcome analysis based on the user's scenario.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1200,
+        }
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            print(f"OpenAI API error: {response.status_code} - {response.text}")
+            return _build_template_response(scenario)
+
+        data = response.json()
+        
+        if "choices" not in data or len(data["choices"]) == 0:
+            print(f"Unexpected OpenAI response: {data}")
+            return _build_template_response(scenario)
+
+        content = data["choices"][0]["message"]["content"].strip()
+
+        # Try to extract JSON from the response
+        try:
+            # First try direct JSON parsing
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            # Try to find JSON in the content (in case there's extra text)
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+            else:
+                print(f"Could not parse JSON from response: {content}")
+                return _build_template_response(scenario)
+
+        # Validate and normalize probabilities
+        outcomes = result.get("outcomes", [])
+        prob_sum = sum(o.get("probability", 0) for o in outcomes)
+        if prob_sum > 0:
+            for outcome in outcomes:
+                outcome["probability"] = round(outcome["probability"] / prob_sum, 2)
+
+        return result
+
+    except Exception as e:
+        # Fallback to template if AI fails
+        print(f"Error calling OpenAI API: {e}")
+        return _build_template_response(scenario)
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -159,4 +279,4 @@ def health():
 if __name__ == "__main__":
     import os
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(debug=debug, port=5000)
+    app.run(debug=debug, port=5001)

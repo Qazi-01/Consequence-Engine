@@ -1,6 +1,6 @@
 export default function InputBox({ scenario, onChange, onSubmit, loading }) {
   function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!loading && scenario.trim()) onSubmit();
     }
@@ -22,7 +22,7 @@ export default function InputBox({ scenario, onChange, onSubmit, loading }) {
         disabled={loading || !scenario.trim()}
         className="self-center px-8 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-base shadow hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Simulating…' : 'Simulate Outcome'}
+        {loading ? "Simulating…" : "Simulate Outcome"}
       </button>
     </div>
   );
