@@ -188,6 +188,7 @@ You MUST:
 - avoid generic advice
 - avoid templates
 - behave like a strategist simulating real consequences
+- keep responses clear, structured, and concise. Avoid overly long sentences while preserving meaning.
 
 Return ONLY valid JSON:
 
