@@ -1,9 +1,18 @@
+from unittest import result
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
+import google.generativeai as genai
 import os
+import json
+import re
 
 
+genai.api_key = os.environ.get("GEMINI_API_KEY")
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+print("API KEY LOADED:", os.environ.get("GEMINI_API_KEY") is not None)
+print("MODEL READY:", model is not None)
 def _get_allowed_origins() -> list:
     """Return the configured CORS origin allowlist."""
     configured_origins = os.environ.get("CORS_ALLOWED_ORIGINS")
@@ -93,7 +102,7 @@ def _build_response(scenario: str) -> dict:
     # Generate probabilities that sum to 1.0
     most_likely = round(float(rng.uniform(0.65, 0.85)), 2)
     remaining = round(1.0 - most_likely, 2)
-    likely_raw = remaining * 0.70
+    likely_raw = round(remaining * 0.70)
     likely = round(likely_raw, 2)
     less_likely = round(remaining - likely, 2)
 
@@ -140,22 +149,107 @@ def _build_response(scenario: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
+
 @app.route("/simulate", methods=["POST"])
 def simulate():
-    data = request.get_json(silent=True)
-    if not data or not isinstance(data.get("scenario"), str) or not data["scenario"].strip():
-        return jsonify({"error": "A non-empty 'scenario' string is required."}), 400
+    try:
+        data = request.get_json(silent=True)
 
-    scenario = data["scenario"].strip()
-    result = _build_response(scenario)
-    return jsonify(result), 200
+        if not data or not data.get("scenario"):
+            return jsonify({"error": "scenario required"}), 400
 
+        scenario = data["scenario"]
+
+        result = call_gemini(scenario)
+
+        return jsonify(result)
+
+    except Exception as e:
+        print("🔥 ERROR:", str(e))
+        return jsonify({
+            "error": "server crashed",
+            "details": str(e)
+        }), 500
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
 
+def call_gemini(scenario: str):
+    prompt = f"""
+You are a decision intelligence engine.
 
+Analyze this scenario deeply and personally:
+
+"{scenario}"
+
+You MUST:
+- tailor ALL reasoning to the exact scenario
+- avoid generic advice
+- avoid templates
+- behave like a strategist simulating real consequences
+
+Return ONLY valid JSON:
+
+{{
+  "outcomes": [
+    {{
+      "label": "Most Likely",
+      "probability": 0.7,
+      "outcome": "",
+      "reasoning": "",
+      "rippleEffect": ""
+    }},
+    {{
+      "label": "Likely",
+      "probability": 0.2,
+      "outcome": "",
+      "reasoning": "",
+      "rippleEffect": ""
+    }},
+    {{
+      "label": "Less Likely",
+      "probability": 0.1,
+      "outcome": "",
+      "reasoning": "",
+      "rippleEffect": ""
+    }}
+  ],
+  "betterDecision": "",
+  "projection": {{
+    "mentalState": "",
+    "performance": "",
+    "riskLevel": "Low|Moderate|High"
+  }}
+}}
+
+Rules:
+- NO generic business advice
+- MUST reference scenario specifics
+- NO explanations outside JSON
+"""
+
+    response = model.generate_content(prompt)
+    text = response.text.strip()
+
+    # remove markdown wrappers
+    text = text.replace("```json", "").replace("```", "").strip()
+
+    import json, re
+
+    try:
+        return json.loads(text)
+    except:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+
+        # HARD fallback (prevents crash)
+        return {
+            "error": "Invalid Gemini response",
+            "raw": text
+        }
+    
 if __name__ == "__main__":
     import os
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
