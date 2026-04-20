@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from unittest import result
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -11,7 +13,7 @@ import re
 genai.api_key = os.environ.get("GEMINI_API_KEY")
 model = genai.GenerativeModel("gemini-2.5-flash")
 
-print("API KEY LOADED:", os.environ.get("GEMINI_API_KEY") is not None)
+print("GOOGLE_API_KEY LOADED:", bool(os.getenv("GEMINI_API_KEY")))
 print("MODEL READY:", model is not None)
 def _get_allowed_origins() -> list:
     """Return the configured CORS origin allowlist."""
